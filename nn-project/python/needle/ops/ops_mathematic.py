@@ -1,3 +1,4 @@
+Temp
 """Operator implementations."""
 
 from numbers import Number
@@ -98,15 +99,14 @@ class PowerScalar(TensorOp):
         self.scalar = scalar
 
     def compute(self, a: NDArray) -> NDArray:
-        # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return array_api.power(a, self.scalar)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
-        # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        a = node.inputs[0]
+        return out_grad * self.scalar * power_scalar(a, self.scalar - 1)
         ### END YOUR SOLUTION
 
 
@@ -120,13 +120,16 @@ class EWiseDiv(TensorOp):
     def compute(self, a, b):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return a / b 
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        a, b = node.inputs
+        grad_a = out_grad / b
+        grad_b = out_grad * (-a / (b * b))
+        return grad_a, grad_b
         ### END YOUR SOLUTION
 
 
@@ -141,13 +144,13 @@ class DivScalar(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return a / self.scalar
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return out_grad / self.scalar
         ### END YOUR SOLUTION
 
 
@@ -169,13 +172,18 @@ class Transpose(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.axes is None:
+            return array_api.transpose(a)
+        return array_api.transpose(a, self._full_axes(a))
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.axes is None:
+            return array_api.transpose(out_grad)
+        else:
+            return array_api.transpose(out_grad, self._full_axes(node.inputs[0]))
         ### END YOUR SOLUTION
 
 
@@ -190,13 +198,23 @@ class Reshape(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if isinstance(self.shape, int):
+            return a.reshape((self.shape,))
+        elif isinstance(self.shape, tuple):
+            return a.reshape(self.shape)
+        else:
+            raise ValueError("Shape must be an int or a tuple of ints.")
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        a = node.inputs[0]
+        if out_grad.shape != a.shape:
+            # If the output gradient shape does not match the input shape,
+            # we need to reshape it back to the original shape.
+            out_grad = out_grad.reshape(a.shape)
+        return out_grad
         ### END YOUR SOLUTION
 
 
@@ -260,13 +278,17 @@ class Summation(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.axes is None:
+            return a.sum()
+        return a.sum(self._full_axes(a.shape))
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.axes is None:
+            return out_grad
+        return out_grad.sum(self._full_axes(node.inputs[0].shape))
         ### END YOUR SOLUTION
 
 
@@ -287,13 +309,27 @@ class MatMul(TensorOp):
     def compute(self, a, b):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if isinstance(a, Number) or isinstance(b, Number):
+            return a * b
+        if isinstance(a, NDArray) and isinstance(b, NDArray):
+            # Align shapes if necessary
+            a = self._align_shape(a, b)
+            b = self._align_shape(b, a)
+            return a @ b
+        raise ValueError("Both inputs must be tensors (NDArray) or numbers.")
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if not isinstance(node.inputs[0], NDArray) or not isinstance(
+            node.inputs[1], NDArray
+        ):
+            raise ValueError("Both inputs must be tensors (NDArray).")
+        a, b = node.inputs[0], node.inputs[1]
+        grad_a = out_grad @ b.T
+        grad_b = out_grad.T @ a
+        return grad_a, grad_b
         ### END YOUR SOLUTION
 
 
@@ -305,13 +341,13 @@ class Negate(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return -a
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return -out_grad    
         ### END YOUR SOLUTION
 
 
@@ -323,13 +359,20 @@ class Log(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if isinstance(a, Number):
+            return np.log(a)
+        if isinstance(a, NDArray):
+            return array_api.log(a)
+        raise ValueError("Input must be a tensor (NDArray) or a number.")
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if not isinstance(node.inputs[0], NDArray):
+            raise ValueError("Input must be a tensor (NDArray).")
+        a = node.inputs[0]
+        return out_grad / a
         ### END YOUR SOLUTION
 
 def log(a):
@@ -340,13 +383,20 @@ class Exp(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if isinstance(a, Number):
+            return np.exp(a)
+        if isinstance(a, NDArray):
+            return array_api.exp(a)
+        raise ValueError("Input must be a tensor (NDArray) or a number.")
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if not isinstance(node.inputs[0], NDArray):
+            raise ValueError("Input must be a tensor (NDArray).")
+        a = node.inputs[0]
+        return out_grad * np.exp(a)
         ### END YOUR SOLUTION
 
 
@@ -358,13 +408,19 @@ class ReLU(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if isinstance(a, Number):
+            return max(0, a)
+        if isinstance(a, NDArray):
+            return array_api.maximum(a, 0)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if not isinstance(node.inputs[0], NDArray):
+            raise ValueError("Input must be a tensor (NDArray).")
+        a = node.inputs[0]
+        return out_grad * array_api.where(a > 0, 1, 0)
         ### END YOUR SOLUTION
 
 def relu(a):
@@ -375,13 +431,19 @@ class Tanh(TensorOp):
     def compute(self, a):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if isinstance(a, Number):
+            return np.tanh(a)
+        if isinstance(a, NDArray):
+            return array_api.tanh(a)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if not isinstance(node.inputs[0], NDArray):
+            raise ValueError("Input must be a tensor (NDArray).")
+        a = node.inputs[0]
+        return out_grad * (1 - array_api.tanh(a) ** 2)
         ### END YOUR SOLUTION
 
 
@@ -667,6 +729,7 @@ class Conv(TensorOp):
 
 def conv(a, b, stride=1, padding=1):
     return Conv(stride, padding)(a, b)
+
 
 
 
