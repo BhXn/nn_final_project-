@@ -38,9 +38,14 @@ class LinearWarmUp(Scheduler):
         self.optimizer.lr = initial_lr
 
     def step(self):
-        # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.current_epoch += 1
+        if self.current_epoch <= self.warmup_epochs:
+            # Linear warmup
+            lr = self.initial_lr + (self.target_lr - self.initial_lr) * (self.current_epoch / self.warmup_epochs)
+            self.optimizer.lr = lr
+        else:
+            self.optimizer.lr = self.target_lr
         ### END YOUR SOLUTION
 
 
@@ -55,7 +60,14 @@ class CosineDecayWithWarmRestarts(Scheduler):
         self.T_cur = T_0  # Current epoch count within the current cycle
 
     def step(self):
-        # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.current_epoch += 1
+        # Compute the number of epochs since the last restart
+        if self.current_epoch > self.T_cur:
+            self.current_epoch = 1
+            self.T_cur *= self.T_mult
+
+        # Cosine annealing formula
+        lr = self.initial_lr * 0.5 * (1 + np.cos(np.pi * (self.current_epoch - 1) / self.T_cur))
+        self.optimizer.lr = lr
         ### END YOUR SOLUTION

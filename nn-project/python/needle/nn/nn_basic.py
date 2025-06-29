@@ -144,54 +144,82 @@ class Sequential(Module):
     def forward(self, x: Tensor) -> Tensor:
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        for module in self.modules: 
+            x = module(x)
+        return x 
         ### END YOUR SOLUTION
 
 
 class SoftmaxLoss(Module):
     def forward(self, logits: Tensor, y: Tensor):
-        # TODO
+        # logits: (batch, num_classes)
+        # y: (batch,) with class indices
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        # Compute log-sum-exp for numerical stability
+        logsumexp = ops.logsumexp(logits, axes=(1,))
+        # Gather the logits corresponding to the correct class
+        batch_indices = ops.arange(logits.shape[0], device=logits.device)
+        correct_class_logits = logits[batch_indices, y]
+        # Negative log likelihood
+        loss = logsumexp - correct_class_logits
+        return loss.mean()
         ### END YOUR SOLUTION
         
 class CrossEntrophyLoss(Module):
-    def forward(self,logits: Tensor, y: Tensor):
-        # TODO
+    def forward(self, logits: Tensor, y: Tensor):
+        # logits: (batch, num_classes)
+        # y: (batch,) with class indices
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        logsumexp = ops.logsumexp(logits, axes=(1,))
+        batch_indices = ops.arange(logits.shape[0], device=logits.device)
+        correct_class_logits = logits[batch_indices, y]
+        loss = logsumexp - correct_class_logits
+        return loss.mean()
         ### END YOUR SOLUTION
         
 class BinaryCrossEntrophyLoss(Module):
-    def forward(self,logits: Tensor, y: Tensor):
-        # TODO
+    def forward(self, logits: Tensor, y: Tensor):
+        # logits: (batch,) or (batch, 1)
+        # y: (batch,) or (batch, 1), values in {0, 1}
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        # Sigmoid for logits
+        probs = ops.sigmoid(logits)
+        # BCE loss: -y*log(p) - (1-y)*log(1-p)
+        loss = - (y * ops.log(probs + 1e-8) + (1 - y) * ops.log(1 - probs + 1e-8))
+        return loss.mean()
         ### END YOUR SOLUTION
         
 class MSELoss(Module):
     def forward(self, input: Tensor, target: Tensor):
         # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return ((input - target) ** 2).mean()
         ### END YOUR SOLUTION
-        
 class BatchNorm1d(Module):
     def __init__(self, dim, eps=1e-5, momentum=0.1, device=None, dtype="float32"):
         super().__init__()
         self.dim = dim
         self.eps = eps
         self.momentum = momentum
-        # TODO
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        # Learnable parameters
+        self.weight = Parameter(init.ones(dim, device=device, dtype=dtype))
+        self.bias = Parameter(init.zeros(dim, device=device, dtype=dtype))
+        # Running statistics (not parameters)
+        self.running_mean = init.zeros(dim, device=device, dtype=dtype)
+        self.running_var = init.ones(dim, device=device, dtype=dtype)
 
     def forward(self, x: Tensor) -> Tensor:
-        # TODO
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        if self.training:
+            mean = x.mean(axes=(0,))
+            var = ((x - mean) ** 2).mean(axes=(0,))
+            # Update running stats
+            self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean.data
+            self.running_var = (1 - self.momentum) * self.running_var + self.momentum * var.data
+        else:
+            mean = Tensor(self.running_mean, device=x.device, dtype=x.dtype)
+            var = Tensor(self.running_var, device=x.device, dtype=x.dtype)
+        x_hat = (x - mean) / (var + self.eps) ** 0.5
+        return self.weight * x_hat + self.bias
 
 
 class BatchNorm2d(BatchNorm1d):
@@ -207,21 +235,21 @@ class BatchNorm2d(BatchNorm1d):
 
 
 class LayerNorm1d(Module):
-    def __init__(self, dim, eps=1e-5, device=None, dtype="float32"):
-        super().__init__()
+    def init(self, dim, eps=1e-5, device=None, dtype="float32"):
+        super().init()
         self.dim = dim
         self.eps = eps
-        # TODO
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        # Learnable parameters for scaling and shifting
+        self.weight = Parameter(init.ones(dim, device=device, dtype=dtype))
+        self.bias = Parameter(init.zeros(dim, device=device, dtype=dtype))
 
     def forward(self, x: Tensor) -> Tensor:
-        # TODO
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
-
+        # x shape: (batch_size, dim)
+        mean = x.mean(axes=(1,), keepdims=True)  # shape: (batch_size, 1)
+        var = ((x - mean) ** 2).mean(axes=(1,), keepdims=True)  # shape: (batch_size, 1)
+        x_hat = (x - mean) / (var + self.eps) ** 0.5
+        # Broadcast weight and bias to (batch_size, dim)
+        return self.weight * x_hat + self.bias
 
 class Dropout(Module):
     def __init__(self, p=0.5):
@@ -229,9 +257,12 @@ class Dropout(Module):
         self.p = p
 
     def forward(self, x: Tensor) -> Tensor:
-        # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if not self.training or self.p == 0.0:
+            return x
+        mask = (np.random.rand(*x.shape) > self.p).astype(x.dtype)
+        mask = Tensor(mask, device=x.device, dtype=x.dtype)
+        return x * mask / (1.0 - self.p)
         ### END YOUR SOLUTION
 
 
@@ -241,7 +272,7 @@ class Residual(Module):
         self.fn = fn
 
     def forward(self, x: Tensor) -> Tensor:
-        # TODO
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return self.fn(x) + x
         ### END YOUR SOLUTION
+
