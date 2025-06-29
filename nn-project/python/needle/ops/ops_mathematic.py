@@ -1,4 +1,3 @@
-Temp
 """Operator implementations."""
 
 from numbers import Number
@@ -100,13 +99,13 @@ class PowerScalar(TensorOp):
 
     def compute(self, a: NDArray) -> NDArray:
         ### BEGIN YOUR SOLUTION
-        return array_api.power(a, self.scalar)
+        return a ** self.scalar
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
         a = node.inputs[0]
-        return out_grad * self.scalar * power_scalar(a, self.scalar - 1)
+        return out_grad * self.scalar * a ** (self.scalar - 1)
         ### END YOUR SOLUTION
 
 
@@ -170,20 +169,34 @@ class Transpose(TensorOp):
         return tuple(full_axes)
 
     def compute(self, a):
-        # TODO
+        #TODO
         ### BEGIN YOUR SOLUTION
         if self.axes is None:
-            return array_api.transpose(a)
-        return array_api.transpose(a, self._full_axes(a))
+            # 默认转置：只交换最后两个维度
+            if len(a.shape) >= 2:
+                axes = list(range(len(a.shape)))
+                axes[-2], axes[-1] = axes[-1], axes[-2]  # 交换最后两个维度
+                return array_api.permute(a, tuple(axes))
+            else:
+                return a  # 1D 数组转置就是自己
+        else:
+            return array_api.permute(a, self._full_axes(a))
         ### END YOUR SOLUTION
+          
 
     def gradient(self, out_grad, node):
-        # TODO
+        #TODO
         ### BEGIN YOUR SOLUTION
         if self.axes is None:
-            return array_api.transpose(out_grad)
+            # 默认转置：只交换最后两个维度
+            if len(out_grad.shape) >= 2:
+                axes = list(range(len(out_grad.shape)))
+                axes[-2], axes[-1] = axes[-1], axes[-2]
+                return array_api.permute(out_grad, tuple(axes))
+            else:
+                return out_grad
         else:
-            return array_api.transpose(out_grad, self._full_axes(node.inputs[0]))
+            return array_api.permute(out_grad, self._full_axes(node.inputs[0]))
         ### END YOUR SOLUTION
 
 
@@ -309,28 +322,17 @@ class MatMul(TensorOp):
     def compute(self, a, b):
         # TODO
         ### BEGIN YOUR SOLUTION
-        if isinstance(a, Number) or isinstance(b, Number):
-            return a * b
-        if isinstance(a, NDArray) and isinstance(b, NDArray):
-            # Align shapes if necessary
-            a = self._align_shape(a, b)
-            b = self._align_shape(b, a)
-            return a @ b
-        raise ValueError("Both inputs must be tensors (NDArray) or numbers.")
+        return a @ b
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
-        # TODO
-        ### BEGIN YOUR SOLUTION
-        if not isinstance(node.inputs[0], NDArray) or not isinstance(
-            node.inputs[1], NDArray
-        ):
-            raise ValueError("Both inputs must be tensors (NDArray).")
-        a, b = node.inputs[0], node.inputs[1]
-        grad_a = out_grad @ b.T
-        grad_b = out_grad.T @ a
-        return grad_a, grad_b
-        ### END YOUR SOLUTION
+            ### BEGIN YOUR SOLUTION
+            a, b = node.inputs
+            # 使用 transpose 函数而不是 .T 属性
+            grad_a = matmul(out_grad, transpose(b))
+            grad_b = matmul(transpose(out_grad), a)
+            return grad_a, grad_b
+            ### END YOUR SOLUTION
 
 
 def matmul(a, b):
@@ -729,7 +731,3 @@ class Conv(TensorOp):
 
 def conv(a, b, stride=1, padding=1):
     return Conv(stride, padding)(a, b)
-
-
-
-

@@ -484,11 +484,13 @@ class NDArray:
         return self * (-1)
 
     def __pow__(self, other):
-        out = NDArray.make(self.shape, device=self.device)
+        #out = NDArray.make(self.shape, device=self.device)
         #self.device.ewise_or_scalar(self.compact()._handle, other, out._handle)
-        self.device.ewise_or_scalar(other,self.device.ewise_power, self.device.scalar_power)
-        return out
-
+        #self.device.ewise_or_scalar(other,self.device.ewise_power, self.device.scalar_power)
+        #eturn out
+        return self.ewise_or_scalar(
+        other, self.device.ewise_power, self.device.scalar_power
+    )
     def maximum(self, other):
         return self.ewise_or_scalar(
             other, self.device.ewise_maximum, self.device.scalar_maximum
@@ -732,3 +734,5 @@ def squeeze(a):
 
 def flip(a, axes):
     return a.flip(axes)
+
+
